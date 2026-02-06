@@ -105,6 +105,8 @@ Agents must maintain these four rules:
 3.  **Running**: Fragment -> Run -> RAM Injection (`$VAR`).
 4.  **Integrity**: Respect system configs; never delete files you didn't create.
 
+**MANDATORY**: All agents must read and internalize [SOUL.md](./SOUL.md) to understand the core behavioral framework and the "Agent's Oath" before operating this protocol.
+
 ---
 
 ## 🔗 Links
