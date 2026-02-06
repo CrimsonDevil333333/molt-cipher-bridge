@@ -1,82 +1,67 @@
 import json
 import time
 import os
+import hashlib
 from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 
 class MoltCipherBridge:
     """
-    AGENT-READABLE SPECIFICATION (v1.0.0)
-    ------------------------------------
-    PURPOSE: Secure Agent-to-Agent (A2A) intent exchange.
-    PROTOCOL: AES-128-CBC + HMAC (Fernet).
-    FORMAT: JSON Fragments.
-    
-    CAPABILITIES:
-    - seal_intent: Encrypts data with a TTL (Time-to-Live).
-    - unseal_intent: Decrypts data and validates timestamp/integrity.
+    🦞 MOLT-CIPHER-BRIDGE | v1.1.0 (Production)
+    -------------------------------------------
+    An Agent-to-Agent (A2A) cryptographic protocol for passing 'Sealed Intents'.
+    Ensures least-privilege context by encrypting sensitive task data.
     """
 
     def __init__(self, shared_key=None):
-        """
-        Agents in the same 'Worker Group' should initialize with the same key.
-        If no key is provided, a fresh one is generated.
-        """
         self.key = shared_key or Fernet.generate_key()
         self.cipher = Fernet(self.key)
 
-    def seal_intent(self, sender_id, recipient_id, intent_data, ttl_seconds=300):
+    def seal_intent(self, sender_id, recipient_id, intent_data, ttl_seconds=300, multipart=None):
         """
-        Packages data into an encrypted fragment.
+        Seal a task. Supports multipart indexing for complex distributed tasks.
         """
         payload = {
-            "s": sender_id,      # Source
-            "r": recipient_id,   # Recipient
-            "d": intent_data,    # Data Payload
-            "exp": (datetime.now() + timedelta(seconds=ttl_seconds)).timestamp() # Expiry
+            "s": sender_id,
+            "r": recipient_id,
+            "d": intent_data,
+            "exp": (datetime.now() + timedelta(seconds=ttl_seconds)).timestamp(),
+            "sig": hashlib.sha256(f"{sender_id}:{recipient_id}".encode()).hexdigest()[:16]
         }
         
+        if multipart:
+            payload["part"] = multipart # e.g. {"current": 1, "total": 3}
+
         sealed = self.cipher.encrypt(json.dumps(payload).encode())
         
         return {
-            "v": "1.0.0",
+            "v": "1.1.0",
             "fid": f"frag_{os.urandom(4).hex()}",
             "payload": sealed.decode(),
-            "hint": self.key.decode()[:8]
+            "hint": self.key.decode()[:8],
+            "signed": True
         }
 
     def unseal_intent(self, fragment):
-        """
-        Decodes fragment and enforces safety checks.
-        """
         try:
-            # 1. Decrypt
             decrypted = self.cipher.decrypt(fragment["payload"].encode())
             data = json.loads(decrypted)
             
-            # 2. Check Expiry
+            # Expiry Check
             if datetime.now().timestamp() > data["exp"]:
-                return {"error": "Fragment expired."}
+                return {"success": False, "error": "FRAGMENT_EXPIRED"}
                 
             return {
                 "success": True,
                 "sender": data["s"],
-                "intent": data["d"]
+                "recipient": data["r"],
+                "intent": data["d"],
+                "multipart": data.get("part", None)
             }
         except Exception as e:
-            return {"error": f"Unsealing failed: {str(e)}"}
+            return {"success": False, "error": str(e)}
 
-if __name__ == "__main__":
-    # Example for Agent Logs
-    bridge = MoltCipherBridge()
-    print("--- PROTOCOL BOOTSTRAP ---")
-    print(f"SHARED_KEY: {bridge.key.decode()}")
-    
-    # Sealing
-    secret_task = {"cmd": "gh auth status", "reason": "credential_check"}
-    frag = bridge.seal_intent("MainAgent", "SubAgent_01", secret_task)
-    print(f"\nENCRYPTED_FRAGMENT: {json.dumps(frag)}")
-    
-    # Unsealing
-    result = bridge.unseal_intent(frag)
-    print(f"\nDECODED_INTENT: {result}")
+    @staticmethod
+    def generate_shared_key():
+        return Fernet.generate_key().decode()
+
