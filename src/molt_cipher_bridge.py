@@ -75,26 +75,33 @@ class MoltCipherBridge:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def execute_sealed_command(self, fragment, command_template, ignore_expiry=False):
+    def execute_sealed_command(self, fragment, command_template, ignore_expiry=False, pick=None):
         result = self.unseal_intent(fragment, ignore_expiry=ignore_expiry)
         if not result["success"]:
             return result
 
         intent = result["intent"]
         env = os.environ.copy()
-
-        # If it's a dict, inject as env vars (like old version)
-        if isinstance(intent, dict):
-            secrets = intent.get("secrets", intent) # fallback to whole dict
-            for k, v in secrets.items():
-                env[str(k)] = str(v)
         
-        # If it's a string and looks like env file
+        extracted_secrets = {}
+
+        # If it's a dict, extract secrets
+        if isinstance(intent, dict):
+            extracted_secrets = intent.get("secrets", intent)
+        
+        # If it's a string and looks like env file, parse it
         elif isinstance(intent, str) and "=" in intent:
             for line in intent.splitlines():
                 if "=" in line and not line.strip().startswith("#"):
                     k, v = line.split("=", 1)
-                    env[k.strip()] = v.strip().strip("'\"")
+                    extracted_secrets[k.strip()] = v.strip().strip("'\"")
+        
+        # Filtering logic
+        pick_list = [p.strip() for p in pick.split(",")] if pick else None
+        
+        for k, v in extracted_secrets.items():
+            if pick_list is None or k in pick_list:
+                env[str(k)] = str(v)
 
         try:
             process = subprocess.run(
@@ -145,6 +152,7 @@ def cli():
     run_p.add_argument("--fragment", required=True)
     run_p.add_argument("--cmd", required=True)
     run_p.add_argument("--ignore-expiry", action="store_true")
+    run_p.add_argument("--pick", help="Comma-separated list of keys to inject (default: all)")
 
     # Sample
     sample_p = subparsers.add_parser("sample")
@@ -220,7 +228,7 @@ def cli():
                     frag = json.load(f)
             else:
                 raise
-        print(json.dumps(bridge.execute_sealed_command(frag, args.cmd, ignore_expiry=args.ignore_expiry)))
+        print(json.dumps(bridge.execute_sealed_command(frag, args.cmd, ignore_expiry=args.ignore_expiry, pick=args.pick)))
 
     elif args.command == "sample":
         if args.type == "json":

@@ -53,6 +53,11 @@ Decrypt the fragment and execute a command with the secrets injected as environm
 molt-cipher run --key YOUR_KEY --fragment "$(cat fragment.json)" --cmd "python3 worker_script.py"
 ```
 
+**Selective Injection**: If a fragment contains many secrets but you only want to expose specific ones to the command:
+```bash
+molt-cipher run --key YOUR_KEY --fragment "$(cat fragment.json)" --pick "API_KEY,DB_HOST" --cmd "env"
+```
+
 ### 5. Unseal to File
 If you just need the raw data back:
 ```bash
