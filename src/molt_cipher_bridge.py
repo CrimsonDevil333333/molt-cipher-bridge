@@ -104,8 +104,15 @@ class MoltCipherBridge:
                 env[str(k)] = str(v)
 
         try:
+            # Command template replacement logic
+            final_command = command_template
+            for k, v in env.items():
+                placeholder = f"{{{k}}}"
+                if placeholder in final_command:
+                    final_command = final_command.replace(placeholder, str(v))
+
             process = subprocess.run(
-                command_template,
+                final_command,
                 shell=True,
                 env=env,
                 capture_output=True,

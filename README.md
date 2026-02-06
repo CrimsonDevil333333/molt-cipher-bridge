@@ -79,7 +79,9 @@ Decodes a fragment for inspection.
 The gold standard for secure task execution.
 - `--cmd`: The shell command. Secrets in the payload are injected as ENV vars.
 - `--pick`: Comma-separated list of specific keys to inject (Least Privilege).
-- Example: `molt-cipher run --cmd "echo $TOKEN"`
+- **Template Injection**: Use `{KEY_NAME}` in your command to inject secrets directly into arguments.
+- Example: `molt-cipher run --cmd "python3 script.py --token {API_TOKEN}"`
+- Example: `molt-cipher run --cmd "echo $TOKEN"` (Standard ENV usage)
 
 ### 🧪 `sample`
 Quickly create template secret files for users to fill.
