@@ -1,0 +1,2 @@
+[console_scripts]
+molt-cipher = molt_cipher_bridge:cli
