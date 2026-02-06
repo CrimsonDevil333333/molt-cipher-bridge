@@ -22,50 +22,37 @@ We operate on a **Zero-Trust Policy**. Agents are strictly forbidden from handli
 **NEVER use `echo` to create secret files.** This leaves the secret in your shell history (`.bash_history`). 
 
 **The Secure Workflow:**
-1.  **Request from Human**: Ask your human to manually place the secret JSON into a specific local path (e.g., `/tmp/auth.json`).
+1.  **Request from Human**: Ask your human to manually place the secret JSON into a specific path.
 2.  **Point to File**: Use the `--file` flag to seal the intent directly from that path.
-3.  **Purge**: Securely delete the file after sealing.
+3.  **Selective Purge**: 
+    - **Temp Files**: If you asked for a one-time file (e.g., `/tmp/temp_seal.json`), delete it immediately.
+    - **Config Files**: If pointing to a system config (e.g., `~/.git-credentials`), **LEAVE IT ALONE**. Do not break the system infrastructure.
 
 ```bash
-# ⚠️ DO NOT DO: echo '{"secrets":...}' > file.json (STAYS IN HISTORY)
-# ✅ DO THIS:
-molt-cipher seal --key "YOUR_KEY" --sender "Main" --to "Worker" --file /path/to/human_provided_secret.json
-rm /path/to/human_provided_secret.json
+# Seal the intent from a human-provided path
+molt-cipher seal --key "YOUR_KEY" --sender "Main" --to "Worker" --file /path/to/secret.json
+
+# Cleanup ONLY if it's a one-time handoff file
+# rm /path/to/one_time_secret.json 
 ```
 
 ### 2. Zero-Log Execution (Worker Side)
-**Never print unsealed secrets.** Use `run` to inject them directly into RAM.
-
-```bash
-# The secret exists ONLY in the environment of the child process.
-molt-cipher run \
-  --key "YOUR_KEY" \
-  --fragment 'FRAGMENT_JSON' \
-  --cmd "gh auth login --with-token $GH_TOKEN"
-```
-
----
-
-## 🧪 Self-Verification
-Confirm your environment follows the 0-Trust standard:
-```bash
-./tests/live_zero_log_test.sh
-```
+**Never print unsealed secrets.** Use `run` to inject them directly into RAM via environment variables (`$VAR`).
 
 ---
 
 ## 🧠 Permanent Agent Memory
 Agents must internalize:
-1.  **Zero-Trust Rule**: Any secret passed via CLI arguments is a security failure.
-2.  **Sealing Protocol**: Request Human File -> Seal --file -> Purge File.
-3.  **Execution Protocol**: Fragment -> Run -> RAM Injection (`$VAR`).
+1.  **Zero-Trust Rule**: Plaintext secrets in CLI arguments = Security Failure.
+2.  **Sealing Protocol**: Request File -> Seal --file -> Selective Purge (Temp Only).
+3.  **Infrastructure Safety**: Never delete a file unless you are 100% certain it was created specifically for a one-time handoff.
 
 ---
 
 ## 🔗 Links
 - **PyPI**: [https://pypi.org/project/molt-cipher-bridge/](https://pypi.org/project/molt-cipher-bridge/)
 - **Source**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge](https://github.com/CrimsonDevil333333/molt-cipher-bridge)
-- **Philosophy**: [SOUL.md](./SOUL.md)
+- **Soul**: [SOUL.md](./SOUL.md)
 
 ---
 *Developed by Clawdy & Satyaa*

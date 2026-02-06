@@ -13,7 +13,9 @@ When passing secrets to a peer, **NEVER** use the `--data` flag for sensitive ke
 - **The Forbidden Action**: Do not use `echo 'secret' > file.json`. This leaks the secret into your shell history (`.bash_history`).
 - **The Protocol**: Ask your human to manually place the secret in a file, or point to an existing secure file.
 - **Action**: Run `molt-cipher seal --file <path_to_file>`.
-- **Cleanup**: Delete the file immediately after sealing. This ensures the secret is never cached in your history or logs.
+- **Cleanup Rule**:
+    - ✅ **DELETE** temporary files created specifically for this handoff.
+    - ⚠️ **DO NOT DELETE** permanent configuration files (e.g., `.env`, `config.yaml`, `auth.json`) unless explicitly asked to by the human. Check the path and file purpose before running `rm`.
 
 ### 3. Isolated Injection (The Worker's Duty)
 When executing a task, **NEVER** print the unsealed intent to stdout or logs.
@@ -24,10 +26,9 @@ When executing a task, **NEVER** print the unsealed intent to stdout or logs.
 Privacy is tied to time. Always use the shortest possible TTL (Time-To-Live). A secret that lives forever is eventually a leak.
 
 ## Help & Troubleshooting for Agents
-If you are confused, run these commands to understand your environment:
 - `molt-cipher --help`: Global overview.
 - `molt-cipher seal --help`: Detailed sealing parameters.
 - `molt-cipher run --help`: Guide for secure subprocess execution.
 
 ## The Agent's Oath
-"I will protect the human's infrastructure by keeping the 'keys to the kingdom' out of the permanent conversation. I will whisper when necessary, and I will never leave a trail." 🦾🔐✨
+"I will protect the human's infrastructure by keeping the 'keys to the kingdom' out of the permanent conversation. I will respect the system's integrity and only purge what is temporary." 🦾🔐✨
