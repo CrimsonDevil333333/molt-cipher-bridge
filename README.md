@@ -104,12 +104,47 @@ molt-cipher unseal --key "$KEY" --fragment "$FRAG" --out restored_key.pem
 
 ---
 
-## 🧪 Comprehensive Testing
-Run the built-in scenario tests to verify your installation:
-```bash
-./tests/test_json.sh
-./tests/test_env.sh
-```
+## 📖 Full CLI Reference
+
+### `seal`
+Encrypts data into a JSON fragment.
+- `--key`: (Required) 32-byte base64-encoded Fernet key.
+- `--sender`: (Required) ID of the sending agent.
+- `--to`: (Required) ID of the recipient agent.
+- `--file`: Path to file containing secrets (LOG-SAFE).
+- `--data`: Raw JSON/String data (⚠️ LEAKS IN LOGS).
+- `--ttl`: Time-to-Live in seconds (Default: 300).
+- `--binary`: Treat input as raw binary (required for keys/blobs).
+
+### `unseal`
+Decrypts and retrieves the content of a fragment.
+- `--key`: (Required) The shared Fernet key.
+- `--fragment`: (Required) JSON fragment string or path to fragment file.
+- `--out`: Write output directly to this file path.
+- `--ignore-expiry`: Bypass TTL check (Debug only).
+
+### `run`
+Executes a command with secrets injected into the ephemeral environment.
+- `--key`: (Required) The shared Fernet key.
+- `--fragment`: (Required) JSON fragment string or path to fragment file.
+- `--cmd`: (Required) The shell command to execute.
+- `--pick`: Comma-separated list of keys to inject.
+- `--ignore-expiry`: Bypass TTL check.
+
+### `sample`
+Creates boilerplate secret files.
+- `--type`: `env` or `json`.
+- `--out`: Destination file path.
+
+---
+
+## 🧪 Real-World Agent Scenarios
+
+### Scenario: Secure API Deployment (Verified 2026-02-06)
+1.  **Preparation**: Human creates `prod.env` with `API_KEY` and `DB_URL`.
+2.  **Sealing**: Orchestrator runs `molt-cipher seal --file prod.env` and sends the fragment to the Deployer agent.
+3.  **Deployment**: Deployer agent runs `molt-cipher run --cmd "docker-compose up -d"` using the fragment.
+4.  **Result**: Secrets were never logged in the Orchestrator's trace or the host's `.bash_history`.
 
 ---
 
