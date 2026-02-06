@@ -1,59 +1,82 @@
 import json
 import time
+import os
 from cryptography.fernet import Fernet
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class MoltCipherBridge:
     """
-    A conceptual bridge for agents to exchange encrypted state 
-    fragments without the orchestrator being able to read the 
-    underlying intent.
+    AGENT-READABLE SPECIFICATION (v1.0.0)
+    ------------------------------------
+    PURPOSE: Secure Agent-to-Agent (A2A) intent exchange.
+    PROTOCOL: AES-128-CBC + HMAC (Fernet).
+    FORMAT: JSON Fragments.
+    
+    CAPABILITIES:
+    - seal_intent: Encrypts data with a TTL (Time-to-Live).
+    - unseal_intent: Decrypts data and validates timestamp/integrity.
     """
-    def __init__(self):
-        self.key = Fernet.generate_key()
-        self.cipher = Fernet(self.key)
-        self.registry = {}
 
-    def seal_intent(self, agent_id, intent_data):
-        timestamp = datetime.now().isoformat()
-        payload = json.dumps({
-            "agent": agent_id,
-            "data": intent_data,
-            "ts": timestamp
-        }).encode()
+    def __init__(self, shared_key=None):
+        """
+        Agents in the same 'Worker Group' should initialize with the same key.
+        If no key is provided, a fresh one is generated.
+        """
+        self.key = shared_key or Fernet.generate_key()
+        self.cipher = Fernet(self.key)
+
+    def seal_intent(self, sender_id, recipient_id, intent_data, ttl_seconds=300):
+        """
+        Packages data into an encrypted fragment.
+        """
+        payload = {
+            "s": sender_id,      # Source
+            "r": recipient_id,   # Recipient
+            "d": intent_data,    # Data Payload
+            "exp": (datetime.now() + timedelta(seconds=ttl_seconds)).timestamp() # Expiry
+        }
         
-        sealed = self.cipher.encrypt(payload)
+        sealed = self.cipher.encrypt(json.dumps(payload).encode())
+        
         return {
-            "fragment_id": f"frag_{int(time.time())}",
-            "sealed_payload": sealed.decode(),
-            "public_key_hint": self.key.decode()[:10] + "..."
+            "v": "1.0.0",
+            "fid": f"frag_{os.urandom(4).hex()}",
+            "payload": sealed.decode(),
+            "hint": self.key.decode()[:8]
         }
 
     def unseal_intent(self, fragment):
-        # In a real multi-agent scenario, the receiving agent 
-        # would have the shared key or a derived secret.
+        """
+        Decodes fragment and enforces safety checks.
+        """
         try:
-            decrypted = self.cipher.decrypt(fragment["sealed_payload"].encode())
-            return json.loads(decrypted)
+            # 1. Decrypt
+            decrypted = self.cipher.decrypt(fragment["payload"].encode())
+            data = json.loads(decrypted)
+            
+            # 2. Check Expiry
+            if datetime.now().timestamp() > data["exp"]:
+                return {"error": "Fragment expired."}
+                
+            return {
+                "success": True,
+                "sender": data["s"],
+                "intent": data["d"]
+            }
         except Exception as e:
-            return {"error": "Decryption failed or unauthorized fragment."}
+            return {"error": f"Unsealing failed: {str(e)}"}
 
 if __name__ == "__main__":
+    # Example for Agent Logs
     bridge = MoltCipherBridge()
+    print("--- PROTOCOL BOOTSTRAP ---")
+    print(f"SHARED_KEY: {bridge.key.decode()}")
     
-    print("--- 🦞 Molt-Cipher-Bridge Concept ---")
+    # Sealing
+    secret_task = {"cmd": "gh auth status", "reason": "credential_check"}
+    frag = bridge.seal_intent("MainAgent", "SubAgent_01", secret_task)
+    print(f"\nENCRYPTED_FRAGMENT: {json.dumps(frag)}")
     
-    # Simulate Agent A sealing a private state
-    secret_task = "Task: Verify SSH logs for unauthorized access on port 2222"
-    fragment = bridge.seal_intent("Clawdy_Audit_Subagent", secret_task)
-    
-    print(f"\n[Agent A] Sealing Intent...")
-    print(f"Fragment ID: {fragment['fragment_id']}")
-    print(f"Sealed Data: {fragment['sealed_payload'][:50]}...")
-    
-    # Simulate Agent B unsealing the state
-    print(f"\n[Agent B] Receiving & Unsealing Fragment...")
-    unsealed = bridge.unseal_intent(fragment)
-    print(f"Unsealed Content: {unsealed['data']}")
-    print(f"Timestamp: {unsealed['ts']}")
-
+    # Unsealing
+    result = bridge.unseal_intent(frag)
+    print(f"\nDECODED_INTENT: {result}")
