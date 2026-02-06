@@ -146,6 +146,14 @@ Creates boilerplate secret files.
 3.  **Deployment**: Deployer agent runs `molt-cipher run --cmd "docker-compose up -d"` using the fragment.
 4.  **Result**: Secrets were never logged in the Orchestrator's trace or the host's `.bash_history`.
 
+### Scenario: Multi-Agent Handoff (Verified 2026-02-06)
+1. **Goal**: Pass a GitHub Token from Orchestrator to Worker.
+2. **Workflow**:
+   - Orchestrator seals the token into a fragment.
+   - Worker bootstraps using `bootstrap_agent.sh`.
+   - Worker executes `molt-cipher run --fragment fragment.json --cmd "echo \$GH_TOKEN"` (or use `{GH_TOKEN}` template).
+3. **Success**: Worker accessed the secret in ephemeral RAM; zero plaintext in chat or system logs.
+
 ---
 
 ## 🧠 Permanent Agent Memory
