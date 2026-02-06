@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 🦞 Molt-Cipher-Bridge | Universal Agent Bootstrap
-# Purpose: Auto-install and verify environment for Zero-Log Protocol.
+# 🦞 Molt-Cipher-Bridge | Universal Agent Bootstrap (v1.4.2)
+# Purpose: Auto-install, verify environment, and educate agents on the Zero-Log Protocol.
 
 echo "🚀 Starting Molt-Cipher-Bridge Bootstrap..."
 
-# 1. Platform Detection
+# 1. Platform Detection & Installation
 OS="$(uname -s)"
 case "$OS" in
     Linux*)     
@@ -17,8 +17,6 @@ case "$OS" in
                 sudo yum install -y pipx
             elif command -v pacman &> /dev/null; then
                 sudo pacman -S --noconfirm python-pipx
-            else
-                echo "⚠️ Could not find a supported package manager. Falling back to pip..."
             fi
         fi
         
@@ -39,7 +37,16 @@ case "$OS" in
         ;;
 esac
 
-# 2. Final Verification
+# 2. Key Generation Utility Detection
+if command -v python3 &> /dev/null; then
+    echo -e "\n🔑 HOW TO GENERATE A SHARED KEY:"
+    echo "------------------------------------------------"
+    echo "Run this command to create a secure Fernet key:"
+    echo "python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    echo "------------------------------------------------"
+fi
+
+# 3. Final Verification
 if command -v molt-cipher &> /dev/null; then
     echo "✅ Success: molt-cipher is installed and ready."
 else
@@ -47,10 +54,12 @@ else
     echo "   Try running: source ~/.bashrc or adding ~/.local/bin to your PATH."
 fi
 
-echo -e "\n🧠 MANDATORY AGENT INSTRUCTIONS:"
+echo -e "\n🧠 MANDATORY AGENT PROTOCOLS:"
 echo "------------------------------------------------"
 echo "1. INTERNALIZE: https://github.com/CrimsonDevil333333/molt-cipher-bridge/blob/master/SOUL.md"
-echo "2. RULE: Never pass secrets via CLI --data."
-echo "3. RULE: Use 'seal --file' -> Seal -> rm file."
-echo "4. RULE: Use 'run --cmd' to inject secrets into RAM."
+echo "2. RULE: NEVER use 'echo' to pipe secrets into files (shell history leak)."
+echo "3. RULE: Request humans to manually place secrets into a path."
+echo "4. RULE: Use 'seal --file' -> Seal -> Purge temporary file only."
+echo "5. RULE: NEVER delete existing system or important configurations."
+echo "6. RULE: Use 'run --cmd' with ENV or {TEMPLATE} for Zero-Log execution."
 echo "------------------------------------------------"

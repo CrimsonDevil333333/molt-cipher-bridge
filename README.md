@@ -63,7 +63,14 @@ pip install molt-cipher-bridge
 
 ## 🛠️ Usage Examples
 
-### 🧪 1. Generating Samples
+### 🔑 1. Generating a Shared Key
+Agents must share a key (passed via secure channel or human handoff) to communicate.
+```bash
+# Generate a secure Fernet key
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+### 🧪 2. Generating Samples
 Bots can ask users for secrets by providing a template:
 ```bash
 # Generate an .env template
@@ -73,7 +80,7 @@ molt-cipher sample --type env --out secrets.sample
 molt-cipher sample --type json --out secrets.sample
 ```
 
-### 🔐 2. Sealing Different File Types
+### 🔐 3. Sealing Different File Types
 ```bash
 # Seal a .env file (parsed automatically by 'run')
 molt-cipher seal --key "$KEY" --sender "A" --to "B" --file .env
@@ -82,14 +89,14 @@ molt-cipher seal --key "$KEY" --sender "A" --to "B" --file .env
 molt-cipher seal --key "$KEY" --sender "A" --to "B" --file id_rsa --binary
 ```
 
-### ⚡ 3. Selective Running (Least Privilege)
+### ⚡ 4. Selective Running (Least Privilege)
 Only expose specific secrets to a command, even if the fragment contains many:
 ```bash
 # Only inject DB_URL and DB_USER
 molt-cipher run --key "$KEY" --fragment "$FRAG" --pick "DB_URL,DB_USER" --cmd "psql {DB_URL}"
 ```
 
-### 🔓 4. Unsealing to File
+### 🔓 5. Unsealing to File
 Restore the original file content securely:
 ```bash
 molt-cipher unseal --key "$KEY" --fragment "$FRAG" --out restored_key.pem
