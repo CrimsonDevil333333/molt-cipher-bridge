@@ -66,3 +66,56 @@ class MoltCipherBridge:
     def generate_shared_key():
         return Fernet.generate_key().decode()
 
+
+import sys
+import argparse
+
+def cli():
+    parser = argparse.ArgumentParser(description="🦞 Molt-Cipher-Bridge CLI")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Seal
+    seal_parser = subparsers.add_parser("seal", help="Seal an intent")
+    seal_parser.add_argument("--key", required=True, help="Shared Fernet key")
+    seal_parser.add_argument("--sender", required=True, help="Sender ID")
+    seal_parser.add_argument("--to", required=True, help="Recipient ID")
+    seal_parser.add_argument("--data", required=True, help="JSON or string intent data")
+    seal_parser.add_argument("--ttl", type=int, default=300, help="TTL in seconds")
+
+    # Unseal
+    unseal_parser = subparsers.add_parser("unseal", help="Unseal a fragment")
+    unseal_parser.add_argument("--key", required=True, help="Shared Fernet key")
+    unseal_parser.add_argument("--fragment", required=True, help="The JSON fragment string")
+    unseal_parser.add_argument("--ignore-expiry", action="store_true", help="Bypass TTL check")
+
+    args = parser.parse_args()
+
+    if args.command == "seal":
+        bridge = MoltCipherBridge(shared_key=args.key.encode())
+        # Try to parse data as JSON, otherwise treat as string
+        try:
+            intent_data = json.loads(args.data)
+        except:
+            intent_data = args.data
+        
+        frag = bridge.seal_intent(args.sender, args.to, intent_data, ttl_seconds=args.ttl)
+        print(json.dumps(frag))
+
+    elif args.command == "unseal":
+        bridge = MoltCipherBridge(shared_key=args.key.encode())
+        try:
+            frag_obj = json.loads(args.fragment)
+        except:
+            print(json.dumps({"success": False, "error": "Invalid fragment format"}))
+            return
+
+        result = bridge.unseal_intent(frag_obj, ignore_expiry=args.ignore_expiry)
+        print(json.dumps(result))
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        cli()
+    else:
+        # Keep existing test logic if run without args
+        bridge = MoltCipherBridge()
+        print("Molt-Cipher-Bridge v1.1.0 loaded. Use --help for CLI.")
