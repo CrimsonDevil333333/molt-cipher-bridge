@@ -3,16 +3,15 @@ import time
 import os
 import hashlib
 import subprocess
-import tempfile
 from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 
 class MoltCipherBridge:
     """
-    🦞 MOLT-CIPHER-BRIDGE | v1.2.0 (Production)
+    🦞 MOLT-CIPHER-BRIDGE | v1.3.0 (Production)
     -------------------------------------------
     Agent-to-Agent (A2A) cryptographic protocol for passing 'Sealed Intents'.
-    Ensures least-privilege context by encrypting sensitive task data.
+    Ensures zero-log context by encrypting sensitive task data at source.
     """
 
     def __init__(self, shared_key=None):
@@ -32,7 +31,7 @@ class MoltCipherBridge:
         if multipart: payload["part"] = multipart
         sealed = self.cipher.encrypt(json.dumps(payload).encode())
         return {
-            "v": "1.2.0",
+            "v": "1.3.0",
             "fid": f"frag_{os.urandom(4).hex()}",
             "payload": sealed.decode(),
             "hint": self.key.decode()[:8],
@@ -56,27 +55,18 @@ class MoltCipherBridge:
             return {"success": False, "error": str(e)}
 
     def execute_sealed_command(self, fragment, command_template, ignore_expiry=False):
-        """
-        Unseals the fragment and injects secrets into a command's environment.
-        The secrets NEVER touch the logs as they are passed via ENV.
-        """
         result = self.unseal_intent(fragment, ignore_expiry=ignore_expiry)
         if not result["success"]:
             return result
 
         intent = result["intent"]
-        # Expecting intent to have a 'secrets' dict
         secrets = intent.get("secrets", {})
         
-        # Merge secrets into current environment
         env = os.environ.copy()
         for k, v in secrets.items():
             env[k] = str(v)
 
         try:
-            # Execute command using the template
-            # Example: cmd="gh auth login --with-token GITHUB_TOKEN" 
-            # Note: The tool should read the env var GITHUB_TOKEN
             process = subprocess.run(
                 command_template,
                 shell=True,
@@ -107,7 +97,8 @@ def cli():
     seal_p.add_argument("--key", required=True)
     seal_p.add_argument("--sender", required=True)
     seal_p.add_argument("--to", required=True)
-    seal_p.add_argument("--data", required=True)
+    seal_p.add_argument("--data", help="JSON string data (LEAKS IN LOGS)")
+    seal_p.add_argument("--file", help="Path to a JSON file containing secrets (LOG-SAFE)")
     seal_p.add_argument("--ttl", type=int, default=300)
 
     # Unseal
@@ -116,19 +107,36 @@ def cli():
     unseal_p.add_argument("--fragment", required=True)
     unseal_p.add_argument("--ignore-expiry", action="store_true")
 
-    # Run (Secure Execution)
-    run_p = subparsers.add_parser("run", help="Securely execute a command using sealed secrets")
+    # Run
+    run_p = subparsers.add_parser("run")
     run_p.add_argument("--key", required=True)
     run_p.add_argument("--fragment", required=True)
-    run_p.add_argument("--cmd", required=True, help="Command to run (secrets injected as ENV vars)")
+    run_p.add_argument("--cmd", required=True)
     run_p.add_argument("--ignore-expiry", action="store_true")
 
     args = parser.parse_args()
 
     if args.command == "seal":
         bridge = MoltCipherBridge(shared_key=args.key)
-        try: intent_data = json.loads(args.data)
-        except: intent_data = args.data
+        intent_data = None
+        
+        if args.file:
+            if not os.path.exists(args.file):
+                print(json.dumps({"success": False, "error": f"File not found: {args.file}"}))
+                return
+            with open(args.file, 'r') as f:
+                try:
+                    intent_data = json.load(f)
+                except:
+                    f.seek(0)
+                    intent_data = f.read().strip()
+        elif args.data:
+            try: intent_data = json.loads(args.data)
+            except: intent_data = args.data
+        else:
+            print(json.dumps({"success": False, "error": "Must provide --data or --file"}))
+            return
+            
         print(json.dumps(bridge.seal_intent(args.sender, args.to, intent_data, ttl_seconds=args.ttl)))
 
     elif args.command == "unseal":

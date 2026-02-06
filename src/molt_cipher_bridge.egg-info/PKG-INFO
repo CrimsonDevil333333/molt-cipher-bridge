@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: molt-cipher-bridge
-Version: 1.2.0
+Version: 1.3.0
 Summary: A cryptographic standard for secure Agent-to-Agent (A2A) communication.
 Author-email: Satyaa & Clawdy <clawdy@openclaw.ai>
 License: MIT
@@ -14,7 +14,7 @@ License-File: LICENSE
 Requires-Dist: cryptography>=42.0.0
 Dynamic: license-file
 
-# 🦞 Molt-Cipher-Bridge | v1.1.0
+# 🦞 Molt-Cipher-Bridge | v1.2.0
 
 [![PyPI version](https://img.shields.io/pypi/v/molt-cipher-bridge.svg)](https://pypi.org/project/molt-cipher-bridge/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -27,10 +27,10 @@ Dynamic: license-file
 In multi-agent systems, the central orchestrator typically logs all instructions. This creates a security liability when sub-agents require sensitive context (credentials, private IPs, or restricted logic). 
 
 **Molt-Cipher-Bridge** solves this by providing an "Opaque Handshake":
-1. **Agents** share a temporary key.
+1. **Agents** share a temporary key (Whisper).
 2. **Intents** are sealed into fragments.
 3. **Logs** only show cryptographic noise.
-4. **Worker Agents** unseal the intent in isolated memory.
+4. **Worker Agents** execute tasks in isolated memory without plaintext leaks.
 
 ---
 
@@ -42,75 +42,80 @@ Install the CLI and library globally via PyPI:
 pip install molt-cipher-bridge
 ```
 
-### From Source (Development)
-```bash
-git clone https://github.com/CrimsonDevil333333/molt-cipher-bridge.git
-cd molt-cipher-bridge
-pip install -e .
-```
-
 ---
 
-## 🛠️ Usage for Agents & Bots
+## ⚙️ How It Works (Deep Dive)
 
-### 1. Global CLI Commands
-Once installed, use the `molt-cipher` command directly from your terminal.
-
-#### 🔐 Seal an Intent
-Packages sensitive data into an encrypted JSON fragment.
-```bash
-molt-cipher seal --key "YOUR_FERNET_KEY" --sender "MainAgent" --to "SubAgent" --data '{"db_pass": "secret123"}'
-```
-
-#### 🔓 Unseal (Decrypt) a Fragment
-Decodes the fragment and validates integrity/expiry.
-```bash
-molt-cipher unseal --key "YOUR_FERNET_KEY" --fragment '{"v": "1.1.0", "fid": "...", "payload": "..."}'
-```
-*Tip: Receiving agents should run this in isolated sessions to keep secrets out of logs.*
-
----
-
-### 2. Python Library Usage
-Integrate directly into your agent's logic:
-
+### 1. The Whisper (Key Exchange)
+Before agents can bridge intents, they must share a symmetric key. This is typically done via a one-time "Whisper" message or retrieved from a secure secret store.
 ```python
 from molt_cipher_bridge import MoltCipherBridge
+key = MoltCipherBridge.generate_shared_key()
+# "j6Jc8MPldurpErwl6VYatp-dTunR3Xrioo1NWiNk4w8="
+```
 
-# Initialize with a shared key
-bridge = MoltCipherBridge(shared_key=b'YOUR_SECRET_KEY...')
+### 2. The Sealing (Encryption)
+The Sender Agent encrypts the payload using the shared key. The payload includes:
+- **s**: Sender ID
+- **r**: Recipient ID
+- **d**: Data (The Intent)
+- **exp**: Expiry timestamp (TTL)
+- **sig**: SHA-256 signature hint
 
-# Seal data
-fragment = bridge.seal_intent("Sender", "Recipient", {"task": "deploy"})
+### 3. The Unsealing (Zero-Log Execution)
+The Recipient Agent receives the fragment. Instead of unsealing to a string (which might get logged), it uses the `run` capability to inject secrets directly into a subprocess environment. This ensures that the plaintext secret **exists only in RAM** and never touches the disk or the chat logs.
 
-# Unseal data
-result = bridge.unseal_intent(fragment)
-if result["success"]:
-    print(result["intent"])
+---
+
+## 🛠️ CLI Command Reference
+
+### 🔐 Seal an Intent
+Package sensitive data into an encrypted JSON fragment.
+```bash
+molt-cipher seal \
+  --key "YOUR_KEY" \
+  --sender "Main" \
+  --to "Worker" \
+  --data '{"secrets": {"DB_PASSWORD": "my-ultra-secret"}}'
+```
+
+### 🔓 Unseal (Decrypt)
+Decodes the fragment and validates integrity/expiry.
+```bash
+molt-cipher unseal --key "YOUR_KEY" --fragment '{"v": "1.2.0", ...}'
+```
+
+### ⚡ Run (Secure Execution)
+Directly executes a command by injecting sealed secrets into the environment. 
+```bash
+# Use $ to escape variable names so they are resolved INSIDE the bridge
+molt-cipher run \
+  --key "YOUR_KEY" \
+  --fragment 'FRAGMENT_JSON' \
+  --cmd "curl -H 'Auth: $DB_PASSWORD' https://api.internal"
 ```
 
 ---
 
 ## ✨ Features
-- **Production Encryption**: Uses Fernet (AES-128-CBC + HMAC) for high-grade security.
-- **TTL Expiry**: Fragments automatically expire (default 300s) to prevent replay attacks.
-- **Multipart Fragments**: Support for splitting high-entropy secrets across multiple agents.
-- **Key Hinting**: First 8 characters of the key are provided in fragments for instant verification.
-- **Agent-Readable Spec**: Code-level documentation designed for LLMs to parse and implement.
+- **Zero-Log Execution**: Pass secrets via ENV variables to child processes.
+- **Fernet (AES-128-CBC + HMAC)**: Standard, authenticated encryption.
+- **TTL Security**: Automatic fragment expiration (default 5 mins).
+- **Key Hinting**: Quickly verify keys with the 8-char `hint` field.
+- **Multipart Support**: Split a single intent across multiple agents.
 
 ---
 
 ## 🧪 Verified Test Scenarios
 Live-tested between a Main Agent and a Sub-Agent on **2026-02-06**.
-- **Case**: Passing DB credentials via "Sealed Intent".
-- **Result**: Sub-agent successfully unsealed the task in an isolated session; orchestrator logs only showed the encrypted blob.
+- **Case**: Passing DB credentials via "Sealed Intent" and executing a migration.
+- **Result**: Sub-agent successfully unsealed and executed the task; orchestrator logs only showed the encrypted blob.
 
 ---
 
 ## 🔗 Links
-- **PyPI Package**: [https://pypi.org/project/molt-cipher-bridge/](https://pypi.org/project/molt-cipher-bridge/)
-- **Source Code**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge](https://github.com/CrimsonDevil333333/molt-cipher-bridge)
-- **Issues**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge/issues](https://github.com/CrimsonDevil333333/molt-cipher-bridge/issues)
+- **PyPI**: [https://pypi.org/project/molt-cipher-bridge/](https://pypi.org/project/molt-cipher-bridge/)
+- **Source**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge](https://github.com/CrimsonDevil333333/molt-cipher-bridge)
 
 ---
 *Developed by Clawdy & Satyaa*
