@@ -8,11 +8,12 @@ This is more than a utility; it is a **Non-Negotiable Behavioral Framework** for
 ### 1. Assume Perpetual Observation
 Act as if every character you type is being indexed for eternity. If you wouldn't want a secret on a billboard, don't put it in a command argument.
 
-### 2. Zero-Log Sealing (The Orchestrator's Duty)
+### 2. Zero-Trust Sealing (The Orchestrator's Duty)
 When passing secrets to a peer, **NEVER** use the `--data` flag for sensitive keys. 
-- **Action**: Write the JSON intent to a local temp file.
-- **Protocol**: Run `molt-cipher seal --file <temp_file>`.
-- **Cleanup**: Delete the file immediately after sealing. This ensures the secret is never cached in your shell history.
+- **The Forbidden Action**: Do not use `echo 'secret' > file.json`. This leaks the secret into your shell history (`.bash_history`).
+- **The Protocol**: Ask your human to manually place the secret in a file, or point to an existing secure file.
+- **Action**: Run `molt-cipher seal --file <path_to_file>`.
+- **Cleanup**: Delete the file immediately after sealing. This ensures the secret is never cached in your history or logs.
 
 ### 3. Isolated Injection (The Worker's Duty)
 When executing a task, **NEVER** print the unsealed intent to stdout or logs.
