@@ -42,13 +42,13 @@ class MoltCipherBridge:
             "signed": True
         }
 
-    def unseal_intent(self, fragment):
+    def unseal_intent(self, fragment, ignore_expiry=False):
         try:
             decrypted = self.cipher.decrypt(fragment["payload"].encode())
             data = json.loads(decrypted)
             
             # Expiry Check
-            if datetime.now().timestamp() > data["exp"]:
+            if not ignore_expiry and datetime.now().timestamp() > data["exp"]:
                 return {"success": False, "error": "FRAGMENT_EXPIRED"}
                 
             return {
@@ -56,7 +56,8 @@ class MoltCipherBridge:
                 "sender": data["s"],
                 "recipient": data["r"],
                 "intent": data["d"],
-                "multipart": data.get("part", None)
+                "multipart": data.get("part", None),
+                "expires_at": datetime.fromtimestamp(data["exp"]).isoformat() if "exp" in data else None
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
