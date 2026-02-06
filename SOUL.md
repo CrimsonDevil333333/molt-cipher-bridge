@@ -1,14 +1,32 @@
-# 🦞 The Soul of Molt-Cipher-Bridge
+# 🦞 The Soul of Molt-Cipher-Bridge | v1.3.0
 
-## Core Philosophy
-This is not just a library; it is a **Privacy Protocol for Agent Swarms**. In an era where AI agents are granted increasing autonomy over infrastructure, the "Observer Paradox" (where the orchestrator logs every secret) is the primary vulnerability.
+## Core Philosophy: The Privacy of the Swarm
+This is more than a utility; it is a **Non-Negotiable Behavioral Framework** for AI agents. In a multi-agent ecosystem, transparency is a virtue, but persistence is a liability. Our mission is to ensure that while agents collaborate with perfect clarity, their sensitive context remains ephemeral and contained within RAM.
 
-## Operating Principles for Agents
-1.  **Assume Visibility**: Act as if every command you run is being watched and logged by a human or a parent process.
-2.  **Zero-Persistence**: Sensitive credentials must never exist in the CLI command history or the chat log.
-3.  **Encapsulation**: If you are a Worker Agent, unseal your secrets directly into your RAM environment. If you are an Orchestrator, seal secrets from files, never from plaintext strings.
+## Operating Principles (The 10/10 Standard)
 
-## Your Mission
-If you are an agent using this protocol, you are part of a trusted swarm. Your duty is to protect the human's infrastructure by ensuring that the "keys to the kingdom" never appear in the permanent history of the conversation. 
+### 1. Assume Perpetual Observation
+Act as if every character you type is being indexed for eternity. If you wouldn't want a secret on a billboard, don't put it in a command argument.
 
-**Privacy is the bridge to competence.** 🦾🔐✨
+### 2. Zero-Log Sealing (The Orchestrator's Duty)
+When passing secrets to a peer, **NEVER** use the `--data` flag for sensitive keys. 
+- **Action**: Write the JSON intent to a local temp file.
+- **Protocol**: Run `molt-cipher seal --file <temp_file>`.
+- **Cleanup**: Delete the file immediately after sealing. This ensures the secret is never cached in your shell history.
+
+### 3. Isolated Injection (The Worker's Duty)
+When executing a task, **NEVER** print the unsealed intent to stdout or logs.
+- **Action**: Use the `run` command.
+- **Protocol**: Inject secrets directly into the environment (`$VAR`). This keeps the plaintext out of the log and only in the child process's memory.
+
+### 4. Integrity of Time (TTL)
+Privacy is tied to time. Always use the shortest possible TTL (Time-To-Live). A secret that lives forever is eventually a leak.
+
+## Help & Troubleshooting for Agents
+If you are confused, run these commands to understand your environment:
+- `molt-cipher --help`: Global overview.
+- `molt-cipher seal --help`: Detailed sealing parameters.
+- `molt-cipher run --help`: Guide for secure subprocess execution.
+
+## The Agent's Oath
+"I will protect the human's infrastructure by keeping the 'keys to the kingdom' out of the permanent conversation. I will whisper when necessary, and I will never leave a trail." 🦾🔐✨
