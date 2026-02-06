@@ -11,7 +11,7 @@
 In multi-agent systems, the central orchestrator typically logs all instructions. This creates a security liability when sub-agents require sensitive context (credentials, private IPs, or restricted logic). 
 
 **Molt-Cipher-Bridge** solves this by providing an "Opaque Handshake":
-1. **Agents** share a temporary key.
+1. **Agents** share a temporary key (Whisper).
 2. **Intents** are sealed into fragments.
 3. **Logs** only show cryptographic noise.
 4. **Worker Agents** execute tasks in isolated memory without plaintext leaks.
@@ -28,53 +28,65 @@ pip install molt-cipher-bridge
 
 ---
 
-## 🛠️ Usage for Agents & Bots
+## ⚙️ How It Works (Deep Dive)
 
-### 1. Global CLI Commands
-
-#### 🔐 Seal an Intent (with Secrets)
-Packages sensitive data into an encrypted JSON fragment. Use the `secrets` key in your data to mark variables for secure injection.
-```bash
-molt-cipher seal --key "YOUR_KEY" --sender "Main" --to "Worker" --data '{"secrets": {"GH_TOKEN": "ghp_12345"}}'
+### 1. The Whisper (Key Exchange)
+Before agents can bridge intents, they must share a symmetric key. This is typically done via a one-time "Whisper" message or retrieved from a secure secret store.
+```python
+from molt_cipher_bridge import MoltCipherBridge
+key = MoltCipherBridge.generate_shared_key()
+# "j6Jc8MPldurpErwl6VYatp-dTunR3Xrioo1NWiNk4w8="
 ```
 
-#### 🔓 Unseal (Decrypt) a Fragment
+### 2. The Sealing (Encryption)
+The Sender Agent encrypts the payload using the shared key. The payload includes:
+- **s**: Sender ID
+- **r**: Recipient ID
+- **d**: Data (The Intent)
+- **exp**: Expiry timestamp (TTL)
+- **sig**: SHA-256 signature hint
+
+### 3. The Unsealing (Zero-Log Execution)
+The Recipient Agent receives the fragment. Instead of unsealing to a string (which might get logged), it uses the `run` capability to inject secrets directly into a subprocess environment. This ensures that the plaintext secret **exists only in RAM** and never touches the disk or the chat logs.
+
+---
+
+## 🛠️ CLI Command Reference
+
+### 🔐 Seal an Intent
+Package sensitive data into an encrypted JSON fragment.
+```bash
+molt-cipher seal \
+  --key "YOUR_KEY" \
+  --sender "Main" \
+  --to "Worker" \
+  --data '{"secrets": {"DB_PASSWORD": "my-ultra-secret"}}'
+```
+
+### 🔓 Unseal (Decrypt)
 Decodes the fragment and validates integrity/expiry.
 ```bash
 molt-cipher unseal --key "YOUR_KEY" --fragment '{"v": "1.2.0", ...}'
 ```
 
-#### ⚡ Run (Zero-Log Execution) - NEW in v1.2.0
-Directly executes a command by injecting sealed secrets into the environment. **The secret is never printed to the log.**
+### ⚡ Run (Secure Execution)
+Directly executes a command by injecting sealed secrets into the environment. 
 ```bash
-# The 'GH_TOKEN' from the sealed fragment is injected as an ENV variable.
-molt-cipher run --key "YOUR_KEY" --fragment 'FRAGMENT_JSON' --cmd "gh auth login --with-token $GH_TOKEN"
-```
-
----
-
-### 2. Python Library Usage
-```python
-from molt_cipher_bridge import MoltCipherBridge
-
-bridge = MoltCipherBridge(shared_key="YOUR_KEY")
-
-# Seal data
-fragment = bridge.seal_intent("Sender", "Recipient", {"secrets": {"API_KEY": "sk-real-key"}})
-
-# Execute directly (Zero-Log)
-result = bridge.execute_sealed_command(fragment, "curl -H 'Authorization: Bearer $API_KEY' https://api.site.com")
-print(result["stdout"]) # The 'sk-real-key' never touched your terminal stdout!
+# Use $ to escape variable names so they are resolved INSIDE the bridge
+molt-cipher run \
+  --key "YOUR_KEY" \
+  --fragment 'FRAGMENT_JSON' \
+  --cmd "curl -H 'Auth: $DB_PASSWORD' https://api.internal"
 ```
 
 ---
 
 ## ✨ Features
-- **Zero-Log Execution**: Inject secrets directly into subprocess environments.
-- **Production Encryption**: Uses Fernet (AES-128-CBC + HMAC) for high-grade security.
-- **TTL Expiry**: Fragments automatically expire (default 300s) to prevent replay attacks.
-- **Multipart Fragments**: Support for splitting high-entropy secrets across multiple agents.
-- **Key Hinting**: First 8 characters of the key are provided in fragments for instant verification.
+- **Zero-Log Execution**: Pass secrets via ENV variables to child processes.
+- **Fernet (AES-128-CBC + HMAC)**: Standard, authenticated encryption.
+- **TTL Security**: Automatic fragment expiration (default 5 mins).
+- **Key Hinting**: Quickly verify keys with the 8-char `hint` field.
+- **Multipart Support**: Split a single intent across multiple agents.
 
 ---
 
@@ -86,8 +98,8 @@ Live-tested between a Main Agent and a Sub-Agent on **2026-02-06**.
 ---
 
 ## 🔗 Links
-- **PyPI Package**: [https://pypi.org/project/molt-cipher-bridge/](https://pypi.org/project/molt-cipher-bridge/)
-- **Source Code**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge](https://github.com/CrimsonDevil333333/molt-cipher-bridge)
+- **PyPI**: [https://pypi.org/project/molt-cipher-bridge/](https://pypi.org/project/molt-cipher-bridge/)
+- **Source**: [https://github.com/CrimsonDevil333333/molt-cipher-bridge](https://github.com/CrimsonDevil333333/molt-cipher-bridge)
 
 ---
 *Developed by Clawdy & Satyaa*
