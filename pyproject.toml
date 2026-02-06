@@ -24,10 +24,8 @@ dependencies = [
 molt-cipher = "molt_cipher_bridge:cli"
 
 [tool.setuptools]
+py-modules = ["molt_cipher_bridge"]
 package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [project.urls]
 "Homepage" = "https://github.com/CrimsonDevil333333/molt-cipher-bridge"
