@@ -90,7 +90,7 @@ class MoltCipherBridge:
             extracted_secrets = intent.get("secrets", intent)
         
         # If it's a string and looks like env file, parse it
-        elif isinstance(intent, str) and "=" in intent:
+        elif isinstance(intent, str):
             for line in intent.splitlines():
                 if "=" in line and not line.strip().startswith("#"):
                     k, v = line.split("=", 1)
