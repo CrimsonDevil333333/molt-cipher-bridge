@@ -7,6 +7,37 @@
 
 ---
 
+## 🛡️ The Zero-Log Protocol (MANDATORY)
+We operate on a **Zero-Trust Policy**. Agents must never handle plaintext secrets in command arguments or shell history.
+
+### 1. Zero-Trust Sealing (Sender)
+**NEVER use `echo "SECRET" > file` to create secret files.** This leaves the secret permanently in your shell history (`.bash_history`) and system logs.
+
+**The Secure Workflow:**
+1.  **Request from Human**: If you need a new secret, define a file path and ask your human to manually place the secret data (JSON, .env, or plain text) there.
+2.  **Point to File**: Use the `--file` flag to seal the intent directly from that path.
+3.  **Purge with Caution**: 
+    *   **Temp Files**: If you created a one-time temporary file, delete it immediately after sealing.
+    *   **System/Important Configs**: **NEVER** delete system files, user configurations, or important `.env` files that were already present.
+
+```bash
+# Seal secrets from a file manually placed by the human
+molt-cipher seal --key "$KEY" --sender "Orchestrator" --to "Worker" --file ./secrets.json
+```
+
+### 2. Zero-Log Execution (Worker)
+**Never print unsealed secrets.** Use the `run` command to inject them directly into RAM via environment variables or templates.
+
+```bash
+# Standard ENV injection ($VAR)
+molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "echo \$SECRET_VAL"
+
+# Direct Argument Injection ({VAR})
+molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "python3 api.py --key {API_KEY}"
+```
+
+---
+
 ## ⚡ Quick Start for Agents
 Bootstrap your environment, install the tool, and learn the protocol:
 ```bash
@@ -26,35 +57,6 @@ pipx install molt-cipher-bridge
 ### 📦 Standard Pip
 ```bash
 pip install molt-cipher-bridge
-```
-
----
-
-## 🛡️ The Zero-Log Protocol (MANDATORY)
-We operate on a **Zero-Trust Policy**. Agents must never handle plaintext secrets in command arguments or shell history.
-
-### 1. Zero-Trust Sealing (Sender)
-**NEVER use `echo` to create secret files.** This leaves the secret in your shell history. 
-
-**Workflow:**
-1.  **Request from Human**: Ask the human to manually place the secret file (JSON, .env, or plain text) into a path.
-2.  **Point to File**: Use `--file` to seal the intent directly from that path.
-3.  **Purge**: Delete temporary secret files immediately after sealing.
-
-```bash
-# Seal secrets from a file provided by the human
-molt-cipher seal --key "$KEY" --sender "Orchestrator" --to "Worker" --file ./secrets.json
-```
-
-### 2. Zero-Log Execution (Worker)
-**Never print unsealed secrets.** Use the `run` command to inject them directly into RAM via environment variables or templates.
-
-```bash
-# Standard ENV injection ($VAR)
-molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "echo \$SECRET_VAL"
-
-# Direct Argument Injection ({VAR})
-molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "python3 api.py --key {API_KEY}"
 ```
 
 ---
@@ -105,10 +107,10 @@ Run the built-in scenario tests to verify your installation:
 ---
 
 ## 🧠 Permanent Agent Memory
-1.  **Zero-Trust**: Plaintext secrets in logs = Critical Failure.
-2.  **Sealing**: Human File -> Seal `--file` -> Selective Purge.
+1.  **No `echo`**: Plaintext secrets in shell history = Critical Failure.
+2.  **Handoff**: Human File -> Seal `--file` -> Selective Purge (Temp only).
 3.  **Running**: Fragment -> Run -> RAM Injection (`$VAR` or `{VAR}`).
-4.  **Integrity**: Respect system configs; never delete files you didn't create.
+4.  **Integrity**: Never delete files you didn't create or important system configs.
 
 ---
 
