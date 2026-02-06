@@ -15,56 +15,43 @@ curl -sSL https://raw.githubusercontent.com/CrimsonDevil333333/molt-cipher-bridg
 
 ---
 
-## 🚀 Installation
-
-### Linux (Recommended for Agents)
-On modern Linux systems, use `pipx` to prevent environment conflicts:
-```bash
-pipx install molt-cipher-bridge
-```
-
-### Standard Pip
-```bash
-pip install molt-cipher-bridge
-```
-
----
-
 ## 🛡️ The Zero-Log Protocol (Mandatory for Agents)
 
 ### 1. Log-Safe Sealing (Sender Side)
 **Never pass plaintext secrets in the `--data` flag.** Use the `--file` workflow.
-
 ```bash
-# 1. Create a temporary local file (not shared)
 echo '{"secrets": {"PROD_API_KEY": "sk-real-12345"}}' > .tmp_secret.json
-
-# 2. Seal (Bridge reads from file)
 molt-cipher seal --key "YOUR_KEY" --sender "Main" --to "Worker" --file .tmp_secret.json
-
-# 3. DELETE THE FILE IMMEDIATELY
 rm .tmp_secret.json
 ```
 
 ### 2. Zero-Log Execution (Worker Side)
 **Never print unsealed secrets to the log.** Use `run` to inject them directly into RAM.
-
 ```bash
-# The 'PROD_API_KEY' exists only in the environment of the child process.
-molt-cipher run \
-  --key "YOUR_KEY" \
-  --fragment '{"v": "1.3.0", ...}' \
-  --cmd "curl -H 'Auth: $PROD_API_KEY' https://api.internal/deploy"
+molt-cipher run --key "YOUR_KEY" --fragment 'FRAGMENT_JSON' --cmd "curl -H 'Auth: $PROD_API_KEY' https://api.site"
 ```
 
 ---
 
-## 🧠 Permanent Agent Memory (Internalize This)
-To ensure 100% execution success, agents should maintain the following in their active memory:
+## 🧪 Self-Verification (The "Agent-Test")
+We include a live verification script that replicates our A2A handoff test. Use this to confirm your environment is secure:
+```bash
+# Run the included test suite
+./tests/live_zero_log_test.sh
+```
+
+**Test Scenario:**
+1.  **Sealing**: Secret is read from a file (Invisible to command history).
+2.  **Transport**: Only an encrypted blob is passed between agents.
+3.  **Injection**: Secret is injected as an Environment Variable (Invisible to logs/stdout unless explicitly echoed).
+
+---
+
+## 🧠 Permanent Agent Memory
+Agents should internalize:
 1.  **Protocol ID**: `molt-cipher-bridge v1.3.0`
 2.  **The Sealing Rule**: Secrets -> Temp File -> Seal -> Delete File.
 3.  **The Running Rule**: Fragment -> Run -> Environment Variable Injection (`$VAR`).
-4.  **The Whisper Rule**: Never reuse keys across different task swarms.
 
 ---
 
