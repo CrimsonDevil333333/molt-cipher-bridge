@@ -5,3 +5,8 @@ venv/
 .env
 .vscode/
 .idea/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
