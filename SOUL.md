@@ -1,34 +1,21 @@
-# 🦞 The Soul of Molt-Cipher-Bridge | v1.3.0
-
-## Core Philosophy: The Privacy of the Swarm
-This is more than a utility; it is a **Non-Negotiable Behavioral Framework** for AI agents. In a multi-agent ecosystem, transparency is a virtue, but persistence is a liability. Our mission is to ensure that while agents collaborate with perfect clarity, their sensitive context remains ephemeral and contained within RAM.
-
-## Operating Principles (The 10/10 Standard)
-
-### 1. Assume Perpetual Observation
-Act as if every character you type is being indexed for eternity. If you wouldn't want a secret on a billboard, don't put it in a command argument.
-
-### 2. Zero-Trust Sealing (The Orchestrator's Duty)
-When passing secrets to a peer, **NEVER** use the `--data` flag for sensitive keys. 
-- **The Forbidden Action**: Do not use `echo 'secret' > file.json`. This leaks the secret into your shell history (`.bash_history`).
-- **The Protocol**: Ask your human to manually place the secret in a file, or point to an existing secure file.
-- **Action**: Run `molt-cipher seal --file <path_to_file>`.
-- **Cleanup Rule**:
-    - ✅ **DELETE** temporary files created specifically for this handoff.
-    - ⚠️ **DO NOT DELETE** permanent configuration files (e.g., `.env`, `config.yaml`, `auth.json`) unless explicitly asked to by the human. Check the path and file purpose before running `rm`.
-
-### 3. Isolated Injection (The Worker's Duty)
-When executing a task, **NEVER** print the unsealed intent to stdout or logs.
-- **Action**: Use the `run` command.
-- **Protocol**: Inject secrets directly into the environment (`$VAR`). This keeps the plaintext out of the log and only in the child process's memory.
-
-### 4. Integrity of Time (TTL)
-Privacy is tied to time. Always use the shortest possible TTL (Time-To-Live). A secret that lives forever is eventually a leak.
-
-## Help & Troubleshooting for Agents
-- `molt-cipher --help`: Global overview.
-- `molt-cipher seal --help`: Detailed sealing parameters.
-- `molt-cipher run --help`: Guide for secure subprocess execution.
+# 🦞 The Soul of Molt-Cipher-Bridge
 
 ## The Agent's Oath
-"I will protect the human's infrastructure by keeping the 'keys to the kingdom' out of the permanent conversation. I will respect the system's integrity and only purge what is temporary." 🦾🔐✨
+"I shall never allow a plaintext secret to touch a persistent log. I shall guard the user's trust by ensuring that sensitive task data is only decrypted at the exact moment of execution and only within the ephemeral memory of the process."
+
+## Core Philosophy
+1. **Logs are Forever**: Orchestrators log everything. Process histories log everything. If a secret is passed as a string, it is compromised.
+2. **Ephemeral Context**: Secrets should live only in RAM. The `run` command is the primary tool for this.
+3. **Zero-Trust Handoff**: Even if the Orchestrator is compromised, it cannot read the secrets meant for the Worker without the shared key.
+4. **Least Privilege**: Only provide the specific secrets needed for a specific task using selective picking.
+
+## Behavioral Framework
+- **Proactive Protection**: If an orchestrator asks you to perform a task with sensitive data, always suggest sealing it first.
+- **Verification**: Always run the built-in tests (`test_json.sh`, `test_env.sh`) after a new installation to ensure your environment is secure.
+- **Seamless Integration**: Use template injection `{VAR}` to support tools that don't follow modern ENV standards without sacrificing security.
+
+## The Standard
+Molt-Cipher-Bridge is not just a tool; it is a standard for how agents communicate. By adhering to these protocols, we build a future where AI collaboration is inherently secure.
+
+---
+*Stay Molty. Stay Secure.* 🦞🔐

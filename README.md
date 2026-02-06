@@ -1,14 +1,14 @@
-# 🦞 Molt-Cipher-Bridge (v1.4.1)
+# 🦞 Molt-Cipher-Bridge (v1.4.2)
 
 [![PyPI version](https://img.shields.io/pypi/v/molt-cipher-bridge.svg)](https://pypi.org/project/molt-cipher-bridge/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Molt-Cipher-Bridge** is a cryptographic standard designed for secure **Agent-to-Agent (A2A)** communication and "Sealed Intents." It enables task fragments to be encrypted at the source and decrypted only at the execution destination, keeping sensitive logic entirely out of persistent orchestrator logs.
+**Molt-Cipher-Bridge** is a cryptographic standard designed for secure **Agent-to-Agent (A2A)** communication and "Sealed Intents." It enables task fragments to be encrypted at the source and decrypted only at the execution destination, keeping sensitive logic entirely out of persistent logs.
 
 ---
 
 ## ⚡ Quick Start for Agents
-Run this single command to bootstrap your environment, install the tool, and learn the protocol:
+Bootstrap your environment, install the tool, and learn the protocol:
 ```bash
 curl -sSL https://raw.githubusercontent.com/CrimsonDevil333333/molt-cipher-bridge/master/bootstrap_agent.sh | bash
 ```
@@ -17,102 +17,98 @@ curl -sSL https://raw.githubusercontent.com/CrimsonDevil333333/molt-cipher-bridg
 
 ## 🚀 Installation
 
-### Linux (Recommended for Agents)
-On modern Linux systems (Debian/PiOS/Ubuntu), use `pipx` to prevent environment conflicts:
+### 🛠️ Linux (Recommended)
+Use `pipx` to install as a standalone CLI tool without environment conflicts:
 ```bash
 pipx install molt-cipher-bridge
 ```
 
-### Standard Pip
+### 📦 Standard Pip
 ```bash
 pip install molt-cipher-bridge
 ```
 
 ---
 
-## 🛡️ The Zero-Log Protocol (MANDATORY FOR AGENTS)
-We operate on a **Zero-Trust Policy**. Agents are strictly forbidden from handling plaintext secrets in command arguments or shell history.
+## 🛡️ The Zero-Log Protocol (MANDATORY)
+We operate on a **Zero-Trust Policy**. Agents must never handle plaintext secrets in command arguments or shell history.
 
-### 1. Zero-Trust Sealing (Sender Side)
-**NEVER use `echo` to create secret files.** This leaves the secret in your `.bash_history`. 
+### 1. Zero-Trust Sealing (Sender)
+**NEVER use `echo` to create secret files.** This leaves the secret in your shell history. 
 
-**The Secure Workflow:**
-1.  **Request from Human**: Ask your human to manually place the secret file (JSON, .env, or plain text) into a path.
+**Workflow:**
+1.  **Request from Human**: Ask the human to manually place the secret file (JSON, .env, or plain text) into a path.
 2.  **Point to File**: Use `--file` to seal the intent directly from that path.
-3.  **Selective Purge**: Delete the file ONLY if it was a one-time temp file. Do NOT delete system configs.
+3.  **Purge**: Delete temporary secret files immediately after sealing.
 
 ```bash
-# Seal the intent from a human-provided path
-molt-cipher seal --key "YOUR_KEY" --sender "Main" --to "Worker" --file /path/to/secret.env
+# Seal secrets from a file provided by the human
+molt-cipher seal --key "$KEY" --sender "Orchestrator" --to "Worker" --file ./secrets.json
 ```
 
-### 2. Zero-Log Execution (Worker Side)
-**Never print unsealed secrets.** Use the `run` command to inject them directly into RAM via environment variables.
+### 2. Zero-Log Execution (Worker)
+**Never print unsealed secrets.** Use the `run` command to inject them directly into RAM via environment variables or templates.
 
 ```bash
-# The secret exists ONLY in the environment of the child process ($DB_PASS)
-molt-cipher run --key "YOUR_KEY" --fragment "$(cat fragment.json)" --cmd "echo \$DB_PASS"
+# Standard ENV injection ($VAR)
+molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "echo \$SECRET_VAL"
+
+# Direct Argument Injection ({VAR})
+molt-cipher run --key "$KEY" --fragment "$FRAG" --cmd "python3 api.py --key {API_KEY}"
 ```
 
 ---
 
-## 🛠️ Usage & CLI Reference
+## 🛠️ Usage Examples
 
-### 🔐 `seal`
-Packages data into an encrypted fragment.
-- `--key`: The shared Fernet key.
-- `--sender`: Your Agent ID.
-- `--to`: Recipient Agent ID.
-- `--file`: Path to any file (JSON, .env, binary, etc.) (Secure).
-- `--data`: Raw string (⚠️ Use for non-sensitive data only).
-- `--ttl`: Time-to-Live in seconds (Default: 300).
-- `--binary`: Treat file as raw binary data.
+### 🧪 1. Generating Samples
+Bots can ask users for secrets by providing a template:
+```bash
+# Generate an .env template
+molt-cipher sample --type env --out secrets.sample
 
-### 🔓 `unseal`
-Decodes a fragment for inspection.
-- `--key`: The shared Fernet key.
-- `--fragment`: The JSON fragment string or path to fragment file.
-- `--out`: Write decrypted content directly to this file (Secure).
-- `--ignore-expiry`: Bypass TTL (For debugging).
+# Generate a JSON template
+molt-cipher sample --type json --out secrets.sample
+```
 
-### ⚡ `run`
-The gold standard for secure task execution.
-- `--cmd`: The shell command. Secrets in the payload are injected as ENV vars.
-- `--pick`: Comma-separated list of specific keys to inject (Least Privilege).
-- **Template Injection**: Use `{KEY_NAME}` in your command to inject secrets directly into arguments.
-- Example: `molt-cipher run --cmd "python3 script.py --token {API_TOKEN}"`
-- Example: `molt-cipher run --cmd "echo $TOKEN"` (Standard ENV usage)
+### 🔐 2. Sealing Different File Types
+```bash
+# Seal a .env file (parsed automatically by 'run')
+molt-cipher seal --key "$KEY" --sender "A" --to "B" --file .env
 
-### 🧪 `sample`
-Quickly create template secret files for users to fill.
-- `--type`: `json` or `env`.
-- `--out`: Output filename (Default: secrets.sample).
+# Seal a binary file (e.g., an SSH key)
+molt-cipher seal --key "$KEY" --sender "A" --to "B" --file id_rsa --binary
+```
+
+### ⚡ 3. Selective Running (Least Privilege)
+Only expose specific secrets to a command, even if the fragment contains many:
+```bash
+# Only inject DB_URL and DB_USER
+molt-cipher run --key "$KEY" --fragment "$FRAG" --pick "DB_URL,DB_USER" --cmd "psql {DB_URL}"
+```
+
+### 🔓 4. Unsealing to File
+Restore the original file content securely:
+```bash
+molt-cipher unseal --key "$KEY" --fragment "$FRAG" --out restored_key.pem
+```
 
 ---
 
-## 🧪 Verified Test Scenarios
-### A2A Handoff (Verified 2026-02-06)
-1. **Goal**: Pass a GitHub Token from Main to Sub-Agent.
-2. **Method**: Main agent used `seal --file` to encrypt token.
-3. **Observation**: Chat logs showed zero plaintext.
-4. **Validation**: Sub-agent used `run --cmd` to perform a `gh auth status`. Command succeeded; token stayed in RAM.
-
-### Self-Verification
-Confirm your setup is secure by running the built-in test:
+## 🧪 Comprehensive Testing
+Run the built-in scenario tests to verify your installation:
 ```bash
-./tests/live_zero_log_test.sh
+./tests/test_json.sh
+./tests/test_env.sh
 ```
 
 ---
 
 ## 🧠 Permanent Agent Memory
-Agents must maintain these four rules:
 1.  **Zero-Trust**: Plaintext secrets in logs = Critical Failure.
-2.  **Sealing**: Human File -> Seal --file -> Selective Purge.
-3.  **Running**: Fragment -> Run -> RAM Injection (`$VAR`).
+2.  **Sealing**: Human File -> Seal `--file` -> Selective Purge.
+3.  **Running**: Fragment -> Run -> RAM Injection (`$VAR` or `{VAR}`).
 4.  **Integrity**: Respect system configs; never delete files you didn't create.
-
-**MANDATORY**: All agents must read and internalize [SOUL.md](./SOUL.md) to understand the core behavioral framework and the "Agent's Oath" before operating this protocol.
 
 ---
 
