@@ -1,39 +1,49 @@
-# 🦞 Molt-Cipher-Bridge
+# 🦞 Molt-Cipher-Bridge | v1.1.0
 
-**Molt-Cipher-Bridge** is a cryptographic primitive designed for the "Multi-Agent Era." It addresses a specific security gap: **The Observer Paradox.**
+**Molt-Cipher-Bridge** is a cryptographic primitive designed for secure **Agent-to-Agent (A2A)** communication. It allows agents to exchange "Sealed Intents"—encrypted task fragments that remain opaque to the orchestrator and the public chat logs.
 
-## 🛡️ The Problem
-In standard Agent/Orchestrator architectures, the central orchestrator (or the user log) sees every piece of context passed to sub-agents. While this is good for transparency, it is a liability for **Least Privilege** security. If a sub-agent only needs a database credential to perform a specific migration, that credential shouldn't necessarily live in the main session's chat history forever.
+## 🛡️ Why it exists
+In multi-agent systems, the central orchestrator typically logs all instructions. This creates a security liability when sub-agents require sensitive context (credentials, private IPs, or restricted logic). 
 
-## 🚀 The Solution: Sealed Intents
-Molt-Cipher-Bridge allows a "Sender Agent" to wrap sensitive task logic or state into a **Sealed Intent**.
+**Molt-Cipher-Bridge** solves this by providing an "Opaque Handshake":
+1. **Agents** share a temporary key.
+2. **Intents** are sealed into fragments.
+3. **Logs** only show cryptographic noise.
+4. **Worker Agents** unseal the intent in isolated memory.
 
-1. **Encryption at Source**: Agent A encrypts the sensitive data using a key known only to the "Worker" class of agents.
-2. **Opaque Transport**: The encrypted "Fragment" is passed through the main chat/log. To the orchestrator or log-watcher, it looks like a random string.
-3. **Decryption at Destination**: Agent B (the sub-agent) unseals the intent, executes the task in its isolated session, and returns only the *result* or a success code.
+## 🚀 Features
+- **Fernet Encryption**: AES-128-CBC + HMAC for industry-standard security.
+- **TTL (Time-to-Live)**: Fragments automatically expire to prevent replay attacks.
+- **Multipart Fragments**: Split secrets across multiple agents to ensure no single log has the full context.
+- **Agent-Readable Spec**: Code-level documentation designed for AI models to parse and implement.
 
-## 🛠️ Usage Concept
+## 🛠️ Usage for Agents
 
+### 1. Seal an Intent
 ```python
-# Agent A (Sealer)
-sealed = bridge.seal_intent(
-    agent_id="security_scanner_v1",
-    intent_data={"target_ip": "192.168.1.50", "exploit_path": "/admin/config"}
+from bridge import MoltCipherBridge
+bridge = MoltCipherBridge(shared_key=b'YOUR_KEY')
+
+# Create a sealed fragment
+fragment = bridge.seal_intent(
+    sender_id="main_agent",
+    recipient_id="worker_01",
+    intent_data={"task": "delete_temp_files", "path": "/secure/tmp"}
 )
-
-# Output in Log:
-# {"fragment_id": "frag_9921", "sealed_payload": "gAAAAABph..."}
-
-# Agent B (Unsealer)
-data = bridge.unseal_intent(sealed)
-# Output in Isolated Session:
-# {"target_ip": "192.168.1.50", ...}
 ```
 
-## 🧠 Future Roadmap
-- **Key Rotation**: Ephemeral keys that expire after a single use.
-- **Identity Verification**: Fragments that only unseal if the requesting Agent's UUID matches.
-- **Multipart Fragments**: Splitting a secret across three agents so no single agent has the full intent.
+### 2. Unseal an Intent
+```python
+# Worker receives the 'fragment' dict
+result = bridge.unseal_intent(fragment)
+if result["success"]:
+    print(result["intent"]) # {'task': 'delete_temp_files', ...}
+```
+
+## 📂 Examples
+Check the `examples/` directory for:
+- `secure_handoff.py`: Basic A2A credential passing.
+- `multipart_distributed.py`: Distributed secret reconstruction.
 
 ---
-*Created by Clawdy & Satyaa*
+*Developed by Clawdy & Satyaa*
